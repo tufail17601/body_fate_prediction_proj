@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Body Fat Prediction | FastAPI</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --card: #121a2b;
+      --accent: #4f8cff;
+      --accent-2: #22c55e;
+      --text: #e6edf3;
+      --muted: #9fb2c8;
+      --border: #1f2a44;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
+      background: radial-gradient(1200px 800px at 20% -10%, #1a2750 0%, transparent 60%),
+                  radial-gradient(900px 600px at 100% 0%, #0d3b66 0%, transparent 60%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .container {
+      width: 100%;
+      max-width: 1080px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: 0.3px;
+    }
+    header p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 40%) no-repeat,
+                  var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(180px, 1fr));
+      gap: 14px;
+    }
+    @media (max-width: 1100px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 820px)  { .grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 540px)  { .grid { grid-template-columns: 1fr; } }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    input[type="number"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0c1424;
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79,140,255,0.18);
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      letter-spacing: .2px;
+      transition: transform .08s ease, filter .15s ease, background .2s ease;
+    }
+    button:hover { filter: brightness(1.05); }
+    button:active { transform: translateY(1px); }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .status {
+      margin-top: 14px;
+      font-size: 14px;
+      color: var(--muted);
+      min-height: 20px;
+    }
+    .status.error { color: var(--danger); }
+    .result {
+      margin-top: 16px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      background: #0e172a;
+      border-radius: 12px;
+    }
+    .result h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      color: var(--text);
+    }
+    .result .value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent-2);
+    }
+    footer {
+      margin-top: 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--border);
+      background: #0c1424;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+      margin: 10px auto 0;
+    }
+    kbd {
+      background: #0b1220;
+      border: 1px solid var(--border);
+      border-bottom-color: #0b1220;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Body Fat Prediction</h1>
+      <p>Powered by FastAPI · Send inputs, get instant prediction</p>
+      <div class="badge">Tip: open <kbd>/docs</kbd> to test the raw API</div>
+    </header>
+
+    <section class="card">
+      <form id="predict-form" novalidate>
+        <div class="grid">
+          <!-- Make sure IDs and names match your API field names exactly -->
+          <div class="field">
+            <label for="Density">Density</label>
+            <input id="Density" name="Density" type="number" step="0.0001" required />
+          </div>
+          <div class="field">
+            <label for="Age">Age (years)</label>
+            <input id="Age" name="Age" type="number" step="1" min="0" required />
+          </div>
+          <div class="field">
+            <label for="Weight">Weight (kg)</label>
+            <input id="Weight" name="Weight" type="number" step="0.1" min="0" required />
+          </div>
+          <div class="field">
+            <label for="Height">Height (cm)</label>
+            <input id="Height" name="Height" type="number" step="0.1" min="0" required />
+          </div>
+          <div class="field">
+            <label for="Neck">Neck (cm)</label>
+            <input id="Neck" name="Neck" type="number" step="0.1" min="0" required />
+          </div>
+          <div class="field">
+            <label for="Chest">Chest (cm)</label>
+            <input id="Chest" name="Chest" type="number" step="0.1" min="0" required />
+          </div>
+          <div class="field">
+            <label for="Abdomen">Abdomen (cm)</label>
+            <input id="Abdomen" name="Abdomen" type="number" step="0.1" min="0" required />
+          </div>
+          <div class="field">
+            <label for="Hip">Hip (cm)</label>
+            <input id="Hip" name="Hip" type="number" step="0.1" min="0" required />
+          </div>
+          <div class="field">
+            <label for="thigh">thigh (cm)</label>
+            <input id="thigh" name="thigh" type="number" step="0.1" min="0" required />
+          </div>
+          <div class="field">
+            <label for="Knee">Knee (cm)</label>
+            <input id="Knee" name="Knee" type="number" step="0.1" min="0" required />
+          </div>
+          <div class="field">
+            <label for="Ankle">Ankle (cm)</label>
+            <input id="Ankle" name="Ankle" type="number" step="0.1" min="0" required />
+          </div>
+          <div class="field">
+            <label for="Biceps">Biceps (cm)</label>
+            <input id="Biceps" name="Biceps" type="number" step="0.1" min="0" required />
+          </div>
+          <div class="field">
+            <label for="Forearm">Forearm (cm)</label>
+            <input id="Forearm" name="Forearm" type="number" step="0.1" min="0" required />
+          </div>
+          <div class="field">
+            <label for="Wrist">Wrist (cm)</label>
+            <input id="Wrist" name="Wrist" type="number" step="0.1" min="0" required />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="submit" id="submit-btn">Predict</button>
+          <button type="button" class="btn-secondary" id="reset-btn">Reset</button>
+        </div>
+
+        <div id="status" class="status" aria-live="polite"></div>
+
+        <div id="result" class="result" hidden>
+          <h3>Prediction</h3>
+          <div class="value" id="result-value">—</div>
+          <div id="raw-json" style="margin-top:8px;color:var(--muted);font-size:12px;"></div>
+        </div>
+      </form>
+    </section>
+
+    <footer>
+      © Body Fat Prediction API · FastAPI Demo
+    </footer>
+  </div>
+
+  <script>
+    const form = document.getElementById('predict-form');
+    const statusEl = document.getElementById('status');
+    const resultCard = document.getElementById('result');
+    const resultValue = document.getElementById('result-value');
+    const rawJson = document.getElementById('raw-json');
+    const submitBtn = document.getElementById('submit-btn');
+    const resetBtn = document.getElementById('reset-btn');
+
+    function getValue(id) {
+      const v = parseFloat(document.getElementById(id).value);
+      return Number.isFinite(v) ? v : null;
+    }
+
+    function setBusy(busy) {
+      submitBtn.disabled = busy;
+      submitBtn.textContent = busy ? 'Predicting…' : 'Predict';
+      statusEl.textContent = busy ? 'Sending request to /predict…' : '';
+      statusEl.classList.remove('error');
+    }
+
+    function showError(msg) {
+      statusEl.textContent = msg;
+      statusEl.classList.add('error');
+      resultCard.hidden = true;
+    }
+
+    resetBtn.addEventListener('click', () => {
+      form.reset();
+      statusEl.textContent = '';
+      statusEl.classList.remove('error');
+      resultCard.hidden = true;
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      // Collect and validate all fields (must match API schema exactly)
+      const payload = {
+        Density: getValue('Density'),
+        Age: getValue('Age'),
+        Weight: getValue('Weight'),
+        Height: getValue('Height'),
+        Neck: getValue('Neck'),
+        Chest: getValue('Chest'),
+        Abdomen: getValue('Abdomen'),
+        Hip: getValue('Hip'),
+        thigh: getValue('thigh'),
+        Knee: getValue('Knee'),
+        Ankle: getValue('Ankle'),
+        Biceps: getValue('Biceps'),
+        Forearm: getValue('Forearm'),
+        Wrist: getValue('Wrist'),
+      };
+
+      if (Object.values(payload).some(v => v === null)) {
+        showError('Please fill in all fields with valid numbers.');
+        return;
+      }
+
+      try {
+        setBusy(true);
+
+        // If serving this file from a different origin, update the URL below:
+        // const apiUrl = 'https://your-deployment-url/predict';
+        const apiUrl = '/predict';
+
+        const res = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`HTTP ${res.status}: ${text}`);
+        }
+
+        const data = await res.json();
+
+        // Display result
+        const y = typeof data.prediction === 'number'
+          ? Number(data.prediction)
+          : data.prediction;
+
+        resultValue.textContent = (typeof y === 'number' && Number.isFinite(y))
+          ? y.toFixed(2)
+          : String(y);
+
+        rawJson.textContent = `Raw response: ${JSON.stringify(data)}`;
+        resultCard.hidden = false;
+        statusEl.textContent = 'Success';
+      } catch (err) {
+        console.error(err);
+        showError('Request failed. Is the API running at /predict? Check the server logs.');
+      } finally {
+        setBusy(false);
+      }
+    });
+  </script>
+</body>
+</html>
