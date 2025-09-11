@@ -32,3 +32,6 @@ def predict(data:FEATURE_NAMES):
     features = np.array([[data.Density, data.Age, data.Weight, data.Height, data.Neck, data.Chest, data.Abdomen, data.Hip, data.thigh, data.Knee, data.Ankle, data.Biceps, data.Forearm, data.Wrist ]])
     prediction = model.predict(features)
     return {"prediction": prediction[0]}
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860)
